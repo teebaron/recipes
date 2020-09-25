@@ -67,6 +67,8 @@ def is_object_owner(user, obj):
         return owner == user
     if owner := getattr(obj, 'user', None):
         return owner == user
+    if getattr(obj, 'get_owner', None):
+        return obj.get_owner() == user
     return False
 
 

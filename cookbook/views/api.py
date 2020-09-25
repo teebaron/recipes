@@ -28,11 +28,12 @@ from rest_framework.viewsets import ViewSetMixin
 
 from cookbook.helper.permission_helper import group_required, CustomIsOwner, CustomIsAdmin, CustomIsUser, CustomIsGuest, CustomIsShare
 from cookbook.helper.recipe_url_import import get_from_html
-from cookbook.models import Recipe, Sync, Storage, CookLog, MealPlan, MealType, ViewLog, UserPreference, RecipeBook, Ingredient, Food, Step, Keyword, Unit, SyncLog, ShoppingListRecipe, ShoppingList
+from cookbook.models import Recipe, Sync, Storage, CookLog, MealPlan, MealType, ViewLog, UserPreference, RecipeBook, Ingredient, Food, Step, Keyword, Unit, SyncLog, ShoppingListRecipe, ShoppingList, ShoppingListEntry
 from cookbook.provider.dropbox import Dropbox
 from cookbook.provider.nextcloud import Nextcloud
 from cookbook.serializer import MealPlanSerializer, MealTypeSerializer, RecipeSerializer, ViewLogSerializer, UserNameSerializer, UserPreferenceSerializer, RecipeBookSerializer, IngredientSerializer, FoodSerializer, StepSerializer, \
-    KeywordSerializer, RecipeImageSerializer, StorageSerializer, SyncSerializer, SyncLogSerializer, UnitSerializer, ShoppingListSerializer, ShoppingListRecipeSerializer
+    KeywordSerializer, RecipeImageSerializer, StorageSerializer, SyncSerializer, SyncLogSerializer, UnitSerializer, ShoppingListSerializer, ShoppingListRecipeSerializer, ShoppingListEntrySerializer, ShoppingListEntryCheckedSerializer, \
+    ShoppingListAutoSyncSerializer
 
 
 class UserNameViewSet(viewsets.ReadOnlyModelViewSet):
@@ -203,6 +204,13 @@ class RecipeViewSet(viewsets.ModelViewSet, StandardFilterMixin):
     serializer_class = RecipeSerializer
     permission_classes = [CustomIsShare | CustomIsGuest]  # TODO split read and write permission for meal plan guest
 
+    def get_queryset(self):
+        internal = self.request.query_params.get('internal', None)
+        if internal:
+            self.queryset = self.queryset.filter(internal=True)
+
+        return super(RecipeViewSet, self).get_queryset()
+
     # TODO write extensive tests for permissions
 
     @decorators.action(
@@ -241,6 +249,14 @@ class ShoppingListRecipeViewSet(viewsets.ModelViewSet):
     # TODO custom get qs
 
 
+class ShoppingListEntryViewSet(viewsets.ModelViewSet):
+    queryset = ShoppingListEntry.objects.all()
+    serializer_class = ShoppingListEntrySerializer
+    permission_classes = [CustomIsOwner]  # TODO add custom validation
+
+    # TODO custom get qs
+
+
 class ShoppingListViewSet(viewsets.ModelViewSet):
     queryset = ShoppingList.objects.all()
     serializer_class = ShoppingListSerializer
@@ -249,6 +265,12 @@ class ShoppingListViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = self.queryset.filter(created_by=self.request.user).all()
         return queryset
+
+    def get_serializer_class(self):
+        autosync = self.request.query_params.get('autosync', None)
+        if autosync:
+            return ShoppingListAutoSyncSerializer
+        return self.serializer_class
 
 
 class ViewLogViewSet(viewsets.ModelViewSet):

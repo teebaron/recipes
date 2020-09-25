@@ -21,6 +21,8 @@ class CustomDecimalField(serializers.Field):
         if type(data) == int or type(data) == float:
             return data
         elif type(data) == str:
+            if data == '':
+                return 0
             try:
                 return float(data.replace(',', ''))
             except ValueError:
@@ -195,21 +197,29 @@ class MealPlanSerializer(serializers.ModelSerializer):
 
 
 class ShoppingListRecipeSerializer(serializers.ModelSerializer):
+    recipe_name = serializers.ReadOnlyField(source='recipe.name')
 
     class Meta:
         model = ShoppingListRecipe
-        fields = ('id', 'recipe', 'multiplier')
+        fields = ('id', 'recipe', 'recipe_name', 'multiplier')
         read_only_fields = ('id',)
 
 
 class ShoppingListEntrySerializer(WritableNestedModelSerializer):
     food = FoodSerializer(allow_null=True)
     unit = UnitSerializer(allow_null=True)
+    amount = CustomDecimalField()
 
     class Meta:
         model = ShoppingListEntry
         fields = ('id', 'list_recipe', 'food', 'unit', 'amount', 'order', 'checked')
         read_only_fields = ('id',)
+
+
+class ShoppingListEntryCheckedSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ShoppingListEntry
+        fields = ('id', 'checked')
 
 
 class ShoppingListSerializer(WritableNestedModelSerializer):
@@ -219,6 +229,15 @@ class ShoppingListSerializer(WritableNestedModelSerializer):
     class Meta:
         model = ShoppingList
         fields = ('id', 'uuid', 'note', 'recipes', 'entries', 'shared', 'created_by', 'created_at',)
+        read_only_fields = ('id',)
+
+
+class ShoppingListAutoSyncSerializer(WritableNestedModelSerializer):
+    entries = ShoppingListEntryCheckedSerializer(many=True, allow_null=True)
+
+    class Meta:
+        model = ShoppingList
+        fields = ('id', 'entries',)
         read_only_fields = ('id',)
 
 

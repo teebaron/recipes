@@ -25,6 +25,11 @@ def get_model_name(model):
     return ('_'.join(re.findall('[A-Z][^A-Z]*', model.__name__))).lower()
 
 
+class Space(models.Model):
+    name = models.CharField(max_length=128, default='Default')
+    message = models.CharField(max_length=512, default='', blank=True)
+
+
 class UserPreference(models.Model):
     # Themes
     BOOTSTRAP = 'BOOTSTRAP'
@@ -69,6 +74,7 @@ class UserPreference(models.Model):
     plan_share = models.ManyToManyField(User, blank=True, related_name='plan_share_default')
     ingredient_decimals = models.IntegerField(default=2)
     comments = models.BooleanField(default=COMMENT_PREF_DEFAULT)
+    shopping_auto_sync = models.IntegerField(default=5)
 
     def __str__(self):
         return str(self.user)
@@ -274,17 +280,29 @@ class ShoppingListRecipe(models.Model):
     def __str__(self):
         return f'Shopping list recipe {self.id} - {self.recipe}'
 
+    def get_owner(self):
+        try:
+            return self.shoppinglist_set.first().created_by
+        except AttributeError:
+            return None
+
 
 class ShoppingListEntry(models.Model):
     list_recipe = models.ForeignKey(ShoppingListRecipe, on_delete=models.CASCADE, null=True, blank=True)
     food = models.ForeignKey(Food, on_delete=models.CASCADE)
     unit = models.ForeignKey(Unit, on_delete=models.CASCADE, null=True, blank=True)
-    amount = models.IntegerField(default=1)
+    amount = models.DecimalField(default=0, decimal_places=16, max_digits=32)
     order = models.IntegerField(default=0)
     checked = models.BooleanField(default=False)
 
     def __str__(self):
         return f'Shopping list entry {self.id}'
+
+    def get_owner(self):
+        try:
+            return self.shoppinglist_set.first().created_by
+        except AttributeError:
+            return None
 
 
 class ShoppingList(models.Model):
